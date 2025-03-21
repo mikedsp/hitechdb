@@ -10,7 +10,7 @@ The contents of this folder are as follows:
 - **CurrentConditionsDashboardwithRA02C.jpg**
     This is a screenshot of part of a Datacake dashboard displaying information from device, RA02C-1
 - **FacilityDashboardwithRA02C.jpg**
-    This is a screenshot of a different Datacake dashboard isplaying information from device, RA02C-1
+    This is a screenshot of a different Datacake dashboard displaying information from device, RA02C-1
 - **RA02C Datacake Fields - 1 of 2.jpg**
     This is a screenshot of most of the Datacake fields being captured for device RAO2C-1 using the custom Datacake decoder
 - **RA02C Datacake Fields - 2 of 2.jpg**
