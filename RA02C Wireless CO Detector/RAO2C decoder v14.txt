@@ -1,0 +1,350 @@
+//Feb 28, 2025 v14
+// Move the check for no input parameters to the very top of the decode function and immediately exit if there are
+// no input parameters. Doing this to remove report entries where there is no Alarm status information. 
+//
+// Feb 26, 2025 v13
+// Add logic to return name/value pair data when Fport = 7
+//
+// Feb 25, 2025 v12
+// Put capture of network parameters into 1 place instead of repeating that in decoding parsing logic
+//
+// Feb 24, 2025 v11
+// Nope - we'll get this next time: Modify logic in fPort=7 log block to return variables as name/value pairs
+// Add support for decoding data when fport = 6 and (bytes[2] === 0x00) - this is a version message
+//
+// Feb 23, 2025 v10
+// Add support for handling calls with no input parameters
+//
+// Feb 21, 2025 v9
+// Reformat the return data to be an array for handling by the logging Google Application Script 
+// 	Now that we know the GAS script can recognize the DEVICE_TYPE and parse and then write network
+//  data to the RA02C log file, let's add the rest of the data measurements 
+//
+// Feb 21, 2025 v8
+// Reformat the return data to be an array for handling by the logging Google Application Script 
+// 	Try network data only
+//
+//
+// Feb 7, 2025 v7
+// Rename decoder file to RA02C decoder vX.
+// Add some more sample payloads in comments at the top
+// Decode Battery Status: "Low Voltage" or "Normal"
+// Decode battery temperature
+//
+// Jan 29, 2025
+// Add logic to read out bytes 5,6 and to read out bytes 7 in case 6
+//
+// Jan 29, 2025
+//   Add logic to have decoder return some information even if input variable fport, is not a 6 or 7
+//   Add logic to return the 2 input parameters passed to the decoder
+//
+// Jan 28, 2025
+// Try adding in the network parameter capture
+//
+//
+//
+// Jan 27, 2025
+//  Try adding a couple standard hitechdb variables
+//	  var packetCount = (measurements.PACKET_COUNT.value)+1;
+//    var iot_platform = "TTN";    
+//    var device_type = "RA02C";    
+//    var device_name = "RA02C-1";   
+
+//
+// Jan 27, 2025
+//		Backup the datacake stock RA02A/RA02C decoder
+
+//Sample Payload: 010A019800000104000000
+//  Additional payloads from mike's log: AREBIAAAAMgAAAA=
+// Payload – Base64	Payload Hex							Key Measurements
+// AREAChUgJAMoAAA=	01 11 00 0a 15 20 24 03 28 00 00	0A=SWVersion, 15=HW Version, 20240328 (March 28, 2024) = DateCode
+// AREBIAAAAMgAAAA=	01 11 01 20 00 00 00 c8 00 00 00	3.2V,CO=NoAlarm, Temp=NoAlarm, 20.0℃
+// AREBIAAAANIAAAA=	01 11 01 20 00 00 00 d2 00 00 00	3.2V,CO=NoAlarm, Temp=NoAlarm, 21.0℃
+// AREBIAAAANwAAAA=	01 11 01 20 00 00 00 dc 00 00 00	3.2V,CO=NoAlarm, Temp=NoAlarm, 22.0℃
+// AREBIAAAAOYAAAA=	01 11 01 20 00 00 00 e6 00 00 00	3.2V,CO=NoAlarm, Temp=NoAlarm, 23.0℃
+// AREBIAAAAPAAAAA=	01 11 01 20 00 00 00 f0 00 0 000	3.2V,CO=NoAlarm, Temp=NoAlarm, 24.0℃
+
+// Here are decoded values extracted from a message the Datacake debug log - before I switched the decoder to return an array of value pairs. 
+//"DEVICE_TYPE":string"RA02C"
+//"DEVICE_NAME":string"RA02C-1"
+//"IOT_PLATFORM":string"TTN"
+//"PACKET_COUNT":int875
+//"LORA_DATARATE":string"SF7BW125.0"
+//"LORA_RSSI":int-49
+//"LORA_SNR":int9
+//"LORA_DATARATE_NUM":int7
+//"LORA_FCNT":int912
+//"LORA_GATEWAY_NAME":string"rak7268c-2"
+//"COAlarm":string"No Alarm"
+//"HighTempAlarm":string"No Alarm"
+//"Temp":int21
+//"BatteryStatus":string"Normal"
+//"Volt":float3.2			
+//"Device":string"RA02C"		
+//"DEVICE_PORT":int6		
+//"DECODER_ERRORS":string"No Errors"
+//"BYTES_6_7":int210
+//"DECODER_INPUT_BYTES_B64":string"AREBIAAAANIAAAA="
+
+
+function getCfgCmd(cfgcmd){
+  var cfgcmdlist = {
+    1:   "ConfigReportReq",
+    129: "ConfigReportRsp",
+    2:   "ReadConfigReportReq",
+    130: "ReadConfigReportRsp",
+	3:	 "SetAlarmThresholdReq",
+	131: "SetAlarmThresholdRsp",
+	4:	 "GetAlarmThresholdReq",
+	132: "GetAlarmThresholdRsp"
+  };
+  return cfgcmdlist[cfgcmd];
+}
+
+function getCmdToID(cmdtype){
+  if (cmdtype == "ConfigReportReq")
+	  return 1;
+  else if (cmdtype == "ConfigReportRsp")
+	  return 129;
+  else if (cmdtype == "ReadConfigReportReq")
+	  return 2;
+  else if (cmdtype == "ReadConfigReportRsp")
+	  return 130;
+  else if (cmdtype == "SetAlarmThresholdReq")
+	  return 3;
+  else if (cmdtype == "SetAlarmThresholdRsp")
+	  return 131;
+  else if (cmdtype == "GetAlarmThresholdReq")
+	  return 4;
+  else if (cmdtype == "GetAlarmThresholdRsp")
+	  return 132;
+}
+
+function getDeviceName(dev){
+  var deviceName = {
+	10: "RA02A",
+	17: "RA02C"
+  };
+  return deviceName[dev];
+}
+
+function getDeviceID(devName){
+  var deviceName = {
+	"RA02A": 10,
+	"RA02C": 17
+  };
+
+  return deviceName[devName];
+}
+
+function padLeft(str, len) {
+    str = '' + str;
+    if (str.length >= len) {
+        return str;
+    } else {
+        return padLeft("0" + str, len);
+    }
+}
+
+function Decoder(bytes, fPort) {
+// Before attemptring to decode anything, check if there are no input parameters. 
+// In that case, we'll return without decoding anything, not even network variables 
+      if (!bytes || bytes.length === 0) {
+		decoder_errors = "Input message is null or 0 length";
+       console.log(decoder_errors);
+	   return; 
+    }
+
+  var data = {};
+
+  // Mike add HITECHDB-specific logic	
+  var packetCount = (measurements.PACKET_COUNT.value)+1;   // Increment the packet counting variable by 1
+  var iot_platform = "TTN";    //
+  var device_type = "RA02C";  //
+  var device_name = "RA02C-1";  //  
+  data.PACKET_COUNT = packetCount;
+  data.IOT_PLATFORM = iot_platform;
+  data.DEVICE_TYPE = device_type;
+  data.DEVICE_NAME = device_name;
+  data.DEVICE_PORT = fPort; 
+  data.DECODER_INPUT_BYTES_B64 = bytes;  
+  datacakeFields = [
+    {
+        field: "MIKE-TEST",
+        value: 1234456,
+    },
+    ];
+
+  
+    var lora_hotspot = "Unknown";
+    if (rawPayload.uplink_message.rx_metadata){
+        lora_hotspot = rawPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
+    }
+    data.LORA_GATEWAY_NAME = lora_hotspot;
+
+    var loraDatarateNum = 99;  // If a 99 shows up on the dashboard, that will indicate that the decoder could not parse the received data_rate
+    if (normalizedPayload.data_rate === "SF7BW125.0"){
+        loraDatarateNum = 7;
+        }
+    else if(normalizedPayload.data_rate === "SF8BW125.0"){
+        loraDatarateNum = 8;
+        }
+    else if(normalizedPayload.data_rate === "SF9BW125.0"){
+        loraDatarateNum = 9;
+        }
+    else if(normalizedPayload.data_rate === "SF10BW125.0"){
+        loraDatarateNum = 10;
+        }
+   else if(normalizedPayload.data_rate === "SF11BW125.0"){
+        loraDatarateNum = 11;
+        }
+   else if(normalizedPayload.data_rate === "SF12BW125.0"){
+        loraDatarateNum = 12;
+        }
+   data.LORA_DATARATE_NUM = loraDatarateNum;
+
+
+    // Extract Gateway Information
+     try {
+        
+        data.LORA_RSSI = (!!normalizedPayload.gateways && !!normalizedPayload.gateways[0] && normalizedPayload.gateways[0].rssi) || 0;
+        data.LORA_SNR = (!!normalizedPayload.gateways && !!normalizedPayload.gateways[0] && normalizedPayload.gateways[0].snr) || 0;
+        data.LORA_DATARATE = normalizedPayload.data_rate;   
+		data.LORA_FCNT = normalizedPayload.counter;
+        
+    } catch (e) {
+        
+        console.log(JSON.stringify(e));
+    }  
+
+ 	datacakeFields.push({field:"DEVICE_TYPE", value:data.DEVICE_TYPE});
+	datacakeFields.push({field:"DEVICE_NAME", value:data.DEVICE_NAME});
+	datacakeFields.push({field:"IOT_PLATFORM", value:data.IOT_PLATFORM});
+	datacakeFields.push({field:"PACKET_COUNT", value:data.PACKET_COUNT});
+	datacakeFields.push({field:"LORA_DATARATE", value:data.LORA_DATARATE});
+	datacakeFields.push({field:"LORA_RSSI", value:data.LORA_RSSI});
+	datacakeFields.push({field:"LORA_SNR", value:data.LORA_SNR});
+	datacakeFields.push({field:"LORA_DATARATE_NUM", value:data.LORA_DATARATE_NUM});
+	datacakeFields.push({field:"LORA_FCNT", value:data.LORA_FCNT});
+	datacakeFields.push({field:"LORA_GATEWAY_NAME", value:data.LORA_GATEWAY_NAME});
+	datacakeFields.push({field:"DECODER_INPUT_BYTES_B64", value:data.DECODER_INPUT_BYTES_B64});
+	datacakeFields.push({field:"DEVICE_PORT", value:data.DEVICE_PORT});
+
+    var decoder_errors = "No Errors";
+	data.DECODER_ERRORS = decoder_errors;
+  
+ // Before going into decoding logic based on the fPort value, check if there are no input parameters. 
+// In that case, we'll return just the network type parameters we've captured already 
+      if (!bytes || bytes.length === 0) {
+		decoder_errors = "Input message is null or 0 length";
+		data.DECODER_ERRORS = decoder_errors;
+		datacakeFields.push({field:"DECODER_ERRORS", value:data.DECODER_ERRORS});		
+		//return data; 
+		return datacakeFields;
+
+    }
+  
+  
+  
+  
+  switch (fPort) {
+    case 6:
+      if (bytes[2] === 0x00) {
+        data.Device = getDeviceName(bytes[1]);
+        data.SWver = bytes[3] / 10;
+        data.HWver = bytes[4];
+        data.Datecode = padLeft(bytes[5].toString(16), 2) + padLeft(bytes[6].toString(16), 2) + padLeft(bytes[7].toString(16), 2) + padLeft(bytes[8].toString(16), 2);
+
+       //return data;
+		datacakeFields.push({field:"Device", value:data.Device});			   
+		datacakeFields.push({field:"SWver", value:data.SWver});			   
+		datacakeFields.push({field:"HWver", value:data.HWver});			   
+		datacakeFields.push({field:"Datecode", value:data.Datecode});			   	   
+	    // return data;
+		return datacakeFields;
+      }
+
+      data.Device = getDeviceName(bytes[1]);
+	  datacakeFields.push({field:"Device", value:data.Device});
+	  // Read the battery voltage - note that high bit indicates whether the battery status is Low Voltage
+      if (bytes[3] & 0x80) {
+        var tmp_v = bytes[3] & 0x7F;
+        data.Volt = (tmp_v / 10);
+      } else {
+        data.Volt = bytes[3] / 10;
+      }
+	  // Read the battery status in the high bit. When high bit is 1, that indicates Low Voltage status
+      if (bytes[3] & 0x80) {
+        data.BatteryStatus = "Low Voltage";
+      } else {
+        data.BatteryStatus = "Normal";
+      }
+	  datacakeFields.push({field:"Volt", value:data.Volt});
+	  datacakeFields.push({field:"BatteryStatus", value:data.BatteryStatus});
+
+
+      if (bytes[1] === 0x0A) {
+        data.FireAlarm = (bytes[4] == 0x00) ? 'No Alarm' : 'Alarm';
+		datacakeFields.push({field:"FireAlarm", value:data.FireAlarm});
+        data.HighTempAlarm = (bytes[5] == 0x00) ? 'No Alarm' : 'Alarm';
+		datacakeFields.push({field:"HighTempAlarm", value:data.HighTempAlarm});
+        if (bytes[6] & 0x80) {
+          var tmpval = (bytes[6] << 8 | bytes[7]);
+          data.Temp = (0x10000 - tmpval) / 10 * -1;
+        } else {
+          data.Temp = (bytes[6] << 8 | bytes[7]) / 10;
+        }
+      } else if (bytes[1] === 0x11) {
+        data.COAlarm = (bytes[4] == 0x00) ? 'No Alarm' : 'Alarm';
+		datacakeFields.push({field:"COAlarm", value:data.COAlarm});
+        data.HighTempAlarm = (bytes[5] == 0x00) ? 'No Alarm' : 'Alarm';
+		datacakeFields.push({field:"HighTempAlarm", value:data.HighTempAlarm});
+
+		data.Temp = (bytes[6] << 8 | bytes[7]) / 10;
+      }
+	  datacakeFields.push({field:"Temp", value:data.Temp});
+	  // Add logic to read out bytes 6,7	
+	  data.BYTES_6_7 = (bytes[6] << 8 | bytes[7]);
+	  datacakeFields.push({field:"BYTES_6_7", value:data.BYTES_6_7});
+      break;
+
+    case 7:
+      data.Cmd = getCfgCmd(bytes[0]);
+	  datacakeFields.push({field:"Cmd", value:data.Cmd});
+      data.Device = getDeviceName(bytes[1]);
+	  datacakeFields.push({field:"Device", value:data.Device});
+      if ((bytes[0] === getCmdToID("ConfigReportRsp")) || (bytes[0] === getCmdToID("SetAlarmThresholdRsp"))) {
+        data.Status = (bytes[2] === 0x00) ? 'Success' : 'Failure';
+		datacakeFields.push({field:"Status", value:data.Status});
+      } else if (bytes[0] === getCmdToID("ReadConfigReportRsp")) {
+        data.MinTime = (bytes[2] << 8 | bytes[3]);
+        data.MaxTime = (bytes[4] << 8 | bytes[5]);
+        data.BatteryChange = bytes[6] / 10;
+		datacakeFields.push({field:"MinTime", value:data.MinTime});
+		datacakeFields.push({field:"MaxTime", value:data.MaxTime});
+		datacakeFields.push({field:"BatteryChange", value:data.BatteryChange});
+      } else if (bytes[0] === getCmdToID("GetAlarmThresholdRsp")) {
+        data.AlarmThreshold = bytes[2];
+		datacakeFields.push({field:"AlarmThreshold", value:data.AlarmThreshold});
+      }
+      break;
+
+    default:
+      var fport_not_6_or_7 = "Input paramater, fport, was not a 6 or 7";
+	  data.DECODER_ERRORS = fport_not_6_or_7;
+	  datacakeFields.push({field:"DECODER_ERRORS", value:data.DECODER_ERRORS});
+	  //data.ERRORSCOAlarm
+	  //return {
+      //  errors: ['unknown FPort'],
+	  //    };
+  }
+
+
+  //return data;   // Hitechdb: Before returning the data, reformat it into an array of name/value pairs
+
+	 datacakeFields.push({field:"DECODER_ERRORS", value:data.DECODER_ERRORS});
+
+	 return datacakeFields;
+
+}
+
