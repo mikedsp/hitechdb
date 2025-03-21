@@ -3,7 +3,7 @@ This folder contains artifacts from onboarding a netvox RA02C LoRaWAN wireless C
 The default Datacake decoder for RA02C devices is quite minimial. I made quite a few modifications to the decoder to meet my needs. 
 
 The contents of this folder are as follows:
-- <b>20250321_Datacake Outbound Webhook Log – RA02C.xlsx</B>
+- 20250321_Datacake Outbound Webhook Log – RA02C.xlsx
     This is a Google Sheet log of messages sent by the RA02C-1 device. 
 - CO_Alarm_Status_report-RA02C-1_-2025-3-14.csv
     I've got Datacake programmed to send a weekly report for the RA02C-1 device. This report can be used as a compliance log.
