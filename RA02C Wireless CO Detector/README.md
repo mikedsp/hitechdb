@@ -21,6 +21,10 @@ The contents of this folder are as follows:
     This is the custom Datacake decoder I ended up with to create my dashboards.
 - **TTN hitechdb custom Decoder for RA02C v1.txt**
     I made some minor tweaks to the TTN decoder so that I could see more information in the TTN message logs
+- **RA02C Closeup.jpg**
+    This is a closeup picture of the RA02C sensor mounted on a hallway ceiling
+- **RA02C hallway.jpg**
+    This is a picture of the same RA02C sensor with a wider view of the hallway. The RA02C sensor is in the top/front and that's a smoke detector in the bottom/back with a dirty air return in between:-)
 
 
 
