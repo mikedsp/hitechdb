@@ -1,6 +1,6 @@
 # longview-performance-analysis
 
-If you’re interested in learning more about real-world LoRaWAN IoT systems and/or data analysis of real-world IoT systems, and/or exercising critical thinking skills, then this GitHub repository might be for you. 
+If you’re interested in learning more about real-world LoRaWAN IoT systems and/or data analysis of real-world IoT systems, and/or exercising critical thinking skills, then this GitHub repository folder might be for you. 
 
 Longview is a LoRaWAN IoT system with 7 devices and 1 IoT gateway. The Longview system is in Starkville, Mississippi and uses The Things Industries as a LoRaWAN Network Server (LNS). 
 
