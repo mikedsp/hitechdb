@@ -1,4 +1,4 @@
-#longview-performance-analysis/problem-statement
+# longview-performance-analysis/problem-statement
 
 The **problem-statement** folder contains documentation describing the Longview IoT system and the performance problem that occurred after a gateway outage. The folder also contains 2 log files that can be used to investigate the system performance problem. 
 
