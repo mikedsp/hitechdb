@@ -13,4 +13,4 @@ Q2: Is it possible to fix the performance of the 5 sensors without having to phy
 
 Log files and additional information about the Longview system can be found in the **problem-statement** sub folder. 
 
-Analysis results will be published to the **analysis-results** sub folder.
+Analysis results are published to the **analysis-results** sub folder.
