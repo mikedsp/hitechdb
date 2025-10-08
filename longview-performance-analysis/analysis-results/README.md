@@ -4,7 +4,6 @@ The **analysis-results** folder contains the results from the analysis of the Lo
 
 The contents of this folder are as follows:
 
-* **TBD.TXT** - Placeholder 
 * **Final Report - PC Rate Degradation Analysis of the Longview LoRaWAN System.pdf** - This document details the root cause analysis and result of attempting to fix the problem
 * **(SUPPORTING) Performance Investigation - ChatGPT Research.pdf** - this document contains several series of ChatGPT analysis exercises on the log data. 
 * **(SUPPORTING) Downlink Experiments on TBWL100_10 to fix the PC Rate.pdf** - this document contains a history of trying ChatGPT suggested downlink commands in the TTI console to first fix the Rx Delay issue and then reset the channel sub mask. In the end, I was never able to get the TBWL100_10 device to accept/ack a downlink command. 
